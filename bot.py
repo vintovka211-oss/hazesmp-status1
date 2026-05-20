@@ -417,7 +417,7 @@ async def buy_tariff(callback: types.CallbackQuery):
     }
     
     # Ссылка на оплату (ваша форма ЮMoney)
-    payment_link = f"https://yoomoney.ru/transfer/quickpay?requestId=&receiver={YUMONEY_WALLET}&quickpay=small&targets=Оплата%20чита%20{tarif}&sum={price}&comment={user_id}"
+    payment_link = https://yoomoney.ru/to/4100119525707659"
     
     text = (f"💸 *Оплата: {price}₽*\n\n"
             f"🔗 [Нажмите сюда для оплаты]({payment_link})\n\n"
