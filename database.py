@@ -6,8 +6,10 @@ KEYS_FILE = "data/keys_data.json"
 USED_KEYS_FILE = "data/used_keys.json"
 USERS_FILE = "data/users.json"
 
+# Гарантируем, что папка data существует
+os.makedirs("data", exist_ok=True)
+
 def load_data():
-    os.makedirs("data", exist_ok=True)
     if not os.path.exists(DATA_FILE):
         default = {"prices": {"1day": 100, "7day": 500, "30day": 1500, "forever": 5000}}
         save_data(default)
@@ -67,13 +69,10 @@ def add_user(user_id):
 def get_and_remove_key(tarif):
     keys = load_keys()
     used = load_used_keys()
-    
     if not keys.get(tarif) or len(keys[tarif]) == 0:
         return None
-    
     key = keys[tarif].pop(0)
     used.append(key)
-    
     save_keys(keys)
     save_used_keys(used)
     return key
