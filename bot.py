@@ -7,12 +7,12 @@ from aiogram.utils.executor import start_polling
 import os
 import json
 
-# === КОНФИГ ===
+# ========== КОНФИГ ==========
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 ADMINS = [8493522297, 5449297683]
 YUMONEY_LINK = "https://yoomoney.ru/to/4100119525707659"
 
-# === БАЗА ДАННЫХ ===
+# ========== БАЗА ДАННЫХ ==========
 DATA_FILE = "shop_data.json"
 KEYS_FILE = "keys_data.json"
 USED_KEYS_FILE = "used_keys.json"
@@ -23,7 +23,14 @@ os.makedirs("data", exist_ok=True)
 
 def load_data():
     if not os.path.exists(DATA_FILE):
-        default = {"prices": {"1day": 100, "7day": 500, "30day": 1500, "forever": 5000}}
+        default = {
+            "prices": {
+                "1day": 270,
+                "7day": 1350,
+                "14day": 2550,
+                "forever": "на заказ"
+            }
+        }
         save_data(default)
         return default
     with open(DATA_FILE, "r", encoding="utf-8") as f:
@@ -35,7 +42,12 @@ def save_data(data):
 
 def load_keys():
     if not os.path.exists(KEYS_FILE):
-        default = {"1day": ["DEMO_KEY_001"], "7day": [], "30day": [], "forever": []}
+        default = {
+            "1day": ["KEY1_001", "KEY1_002"],  # 2 ключа
+            "7day": ["KEY7_001"],              # 1 ключ
+            "14day": [],                        # 0 ключей
+            "forever": []                       # 0 ключей
+        }
         save_keys(default)
         return default
     with open(KEYS_FILE, "r", encoding="utf-8") as f:
@@ -88,85 +100,136 @@ def add_key(tarif, key):
     keys[tarif].append(key)
     save_keys(keys)
 
-# === КНОПКИ ===
+def get_keys_count():
+    keys = load_keys()
+    return {
+        "1day": len(keys.get("1day", [])),
+        "7day": len(keys.get("7day", [])),
+        "14day": len(keys.get("14day", [])),
+        "forever": len(keys.get("forever", []))
+    }
+
+# ========== КНОПКИ (красивые) ==========
 def main_menu():
     kb = InlineKeyboardMarkup(row_width=2)
     kb.add(
-        InlineKeyboardButton("🛒 Магазин", callback_data="shop"),
-        InlineKeyboardButton("📞 Поддержка", callback_data="support")
+        InlineKeyboardButton("🛒 МАГАЗИН", callback_data="shop"),
+        InlineKeyboardButton("📞 ПОДДЕРЖКА", callback_data="support")
     )
     return kb
 
 def shop_buttons():
+    keys_count = get_keys_count()
     kb = InlineKeyboardMarkup(row_width=2)
     kb.add(
-        InlineKeyboardButton("💎 1 день", callback_data="buy_1day"),
-        InlineKeyboardButton("🔥 7 дней", callback_data="buy_7day"),
-        InlineKeyboardButton("⚡ 30 дней", callback_data="buy_30day"),
-        InlineKeyboardButton("👑 Навсегда", callback_data="buy_forever"),
-        InlineKeyboardButton("◀️ Назад", callback_data="back_to_menu")
+        InlineKeyboardButton(f"💎 1 день — 270₽ [{keys_count['1day']}]", callback_data="buy_1day"),
+        InlineKeyboardButton(f"🔥 7 дней — 1350₽ [{keys_count['7day']}]", callback_data="buy_7day"),
+        InlineKeyboardButton(f"⚡ 14 дней — 2550₽ [{keys_count['14day']}]", callback_data="buy_14day"),
+        InlineKeyboardButton(f"👑 Навсегда — на заказ", callback_data="buy_forever"),
+        InlineKeyboardButton("◀️ ГЛАВНОЕ МЕНЮ", callback_data="back_to_menu")
     )
     return kb
 
 def admin_panel():
     kb = InlineKeyboardMarkup(row_width=1)
     kb.add(
-        InlineKeyboardButton("💰 Изменить цены", callback_data="admin_prices"),
-        InlineKeyboardButton("🔑 Добавить ключи", callback_data="admin_add_keys"),
-        InlineKeyboardButton("📊 Статистика", callback_data="admin_stats"),
-        InlineKeyboardButton("📢 Рассылка", callback_data="admin_mailing"),
-        InlineKeyboardButton("⏳ Ожидают оплаты", callback_data="admin_pending"),
-        InlineKeyboardButton("◀️ Назад", callback_data="back_to_menu")
+        InlineKeyboardButton("💰 ИЗМЕНИТЬ ЦЕНЫ", callback_data="admin_prices"),
+        InlineKeyboardButton("🔑 ДОБАВИТЬ КЛЮЧИ", callback_data="admin_add_keys"),
+        InlineKeyboardButton("📊 СТАТИСТИКА", callback_data="admin_stats"),
+        InlineKeyboardButton("📢 РАССЫЛКА", callback_data="admin_mailing"),
+        InlineKeyboardButton("⏳ ОЖИДАЮТ ОПЛАТЫ", callback_data="admin_pending"),
+        InlineKeyboardButton("◀️ ГЛАВНОЕ МЕНЮ", callback_data="back_to_menu")
     )
     return kb
 
-# === БОТ ===
+# ========== БОТ ==========
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher(bot)
 dp.middleware.setup(LoggingMiddleware())
 
 temp_states = {}
 
+# ---------- СТАРТ ----------
 @dp.message_handler(commands=["start"])
 async def start_cmd(message: types.Message):
     add_user(message.from_user.id)
-    await message.answer(
-        "🎮 *Добро пожаловать в магазин!*\n\nВыберите действие:",
-        parse_mode="Markdown",
-        reply_markup=main_menu()
+    text = (
+        "🌟 *ДОБРО ПОЖАЛОВАТЬ В МАГАЗИН ЧИТОВ* 🌟\n"
+        "━━━━━━━━━━━━━━━━━━━━━━\n"
+        "🎮 Лучшие читы для твоей игры\n"
+        "⚡ Анти-бан гарантия\n"
+        "💎 Круглосуточная поддержка\n"
+        "━━━━━━━━━━━━━━━━━━━━━━\n"
+        "👇 *Выберите действие ниже* 👇"
     )
+    await message.answer(text, parse_mode="Markdown", reply_markup=main_menu())
 
 @dp.callback_query_handler(lambda c: c.data == "back_to_menu")
 async def back_to_menu(callback: types.CallbackQuery):
-    await callback.message.edit_text(
-        "🎮 *Главное меню*",
-        parse_mode="Markdown",
-        reply_markup=main_menu()
+    text = (
+        "🌟 *ГЛАВНОЕ МЕНЮ* 🌟\n"
+        "━━━━━━━━━━━━━━━━━━━━━━\n"
+        "Выберите действие:"
     )
+    await callback.message.edit_text(text, parse_mode="Markdown", reply_markup=main_menu())
     await callback.answer()
 
+# ---------- МАГАЗИН ----------
 @dp.callback_query_handler(lambda c: c.data == "shop")
 async def show_shop(callback: types.CallbackQuery):
     prices = load_data()["prices"]
-    text = (f"🛒 *Цены:*\n\n"
-            f"💎 1 день — {prices['1day']}₽\n"
-            f"🔥 7 дней — {prices['7day']}₽\n"
-            f"⚡ 30 дней — {prices['30day']}₽\n"
-            f"👑 Навсегда — {prices['forever']}₽\n\n"
-            f"Нажмите на тариф")
+    keys_count = get_keys_count()
+    text = (
+        "🛒 *АКТУАЛЬНЫЕ ЦЕНЫ* 🛒\n"
+        "━━━━━━━━━━━━━━━━━━━━━━\n"
+        f"💎 *1 день* — {prices['1day']}₽  |  в наличии: {keys_count['1day']} шт.\n"
+        f"🔥 *7 дней* — {prices['7day']}₽  |  в наличии: {keys_count['7day']} шт.\n"
+        f"⚡ *14 дней* — {prices['14day']}₽  |  в наличии: {keys_count['14day']} шт.\n"
+        f"👑 *Навсегда* — {prices['forever']}\n"
+        "━━━━━━━━━━━━━━━━━━━━━━\n"
+        "✅ Нажмите на тариф для покупки"
+    )
     await callback.message.edit_text(text, parse_mode="Markdown", reply_markup=shop_buttons())
     await callback.answer()
 
-# --- ПОКУПКА ---
+# ---------- ПОКУПКА ----------
 @dp.callback_query_handler(lambda c: c.data.startswith("buy_"))
 async def buy_tariff(callback: types.CallbackQuery):
     user_id = callback.from_user.id
     tarif = callback.data.split("_")[1]
-    price = load_data()["prices"][tarif]
     
-    keys = load_keys()
-    if not keys.get(tarif) or len(keys[tarif]) == 0:
-        await callback.message.answer("❌ Ключи закончились. Напишите в поддержку!", reply_markup=main_menu())
+    prices = load_data()["prices"]
+    
+    # Особый случай: "навсегда на заказ"
+    if tarif == "forever":
+        text = (
+            "👑 *ТАРИФ НАВСЕГДА* 👑\n"
+            "━━━━━━━━━━━━━━━━━━━━━━\n"
+            "Свяжитесь с администратором для обсуждения цены:\n"
+            f"[💬 Написать админу](tg://user?id={ADMINS[0]})\n\n"
+            "Обычно цена от 5000₽ и выше."
+        )
+        await callback.message.edit_text(text, parse_mode="Markdown", reply_markup=shop_buttons())
+        await callback.answer()
+        return
+    
+    price = prices.get(tarif)
+    if not price:
+        await callback.answer("❌ Тариф временно недоступен")
+        return
+    
+    # Проверяем наличие ключей
+    keys_count = get_keys_count()
+    if keys_count[tarif] == 0:
+        await callback.message.answer(
+            "❌ *КЛЮЧИ ЗАКОНЧИЛИСЬ* ❌\n"
+            "Напишите в поддержку, администратор пополнит запасы.\n"
+            "━━━━━━━━━━━━━━━━━━━━━━\n"
+            f"[📞 Написать в поддержку](tg://user?id={ADMINS[0]})",
+            parse_mode="Markdown",
+            reply_markup=shop_buttons()
+        )
+        await callback.answer()
         return
     
     # Сохраняем заказ
@@ -179,42 +242,52 @@ async def buy_tariff(callback: types.CallbackQuery):
     })
     save_pending(pending)
     
-    text = (f"💸 *Оплата: {price}₽*\n\n"
-            f"🔗 [Нажмите для оплаты]({YUMONEY_LINK})\n\n"
-            f"📌 *Инструкция:*\n"
-            f"1. Переведите *{price}₽* на кошелек\n"
-            f"2. Скопируйте **номер операции** (придет в смс/в истории)\n"
-            f"3. Отправьте его сюда одним сообщением\n\n"
-            f"Пример: `1234567-890123456`")
-    
+    text = (
+        "💸 *ОПЛАТА* 💸\n"
+        "━━━━━━━━━━━━━━━━━━━━━━\n"
+        f"💰 Сумма: *{price}₽*\n"
+        f"🎫 Тариф: *{tarif}*\n"
+        "━━━━━━━━━━━━━━━━━━━━━━\n"
+        f"🔗 [👉 НАЖМИТЕ ДЛЯ ОПЛАТЫ 👈]({YUMONEY_LINK})\n"
+        "━━━━━━━━━━━━━━━━━━━━━━\n"
+        "📌 *ИНСТРУКЦИЯ:*\n"
+        "1️⃣ Переведите *ровно указанную сумму* на кошелек\n"
+        "2️⃣ Скопируйте **номер операции** (придет в смс/история)\n"
+        "3️⃣ Отправьте его сюда одним сообщением\n\n"
+        "📝 Пример: `1234567-890123456`"
+    )
     await callback.message.edit_text(text, parse_mode="Markdown")
     await callback.answer()
 
-# --- ПРИЁМ НОМЕРА ОПЕРАЦИИ ---
+# ---------- ПРИЁМ НОМЕРА ОПЕРАЦИИ ----------
 @dp.message_handler()
 async def handle_transaction(message: types.Message):
     user_id = message.from_user.id
     
-    # Проверяем, есть ли ожидающий платёж у пользователя
     pending = load_pending()
     user_pending = [p for p in pending if p["user_id"] == user_id and p["status"] == "waiting"]
     
     if not user_pending:
+        # Неактивное сообщение — игнорируем
         return
     
     transaction = message.text.strip()
     pending_item = user_pending[0]
     
-    # Отправляем админам
+    # Отправляем уведомление админам
     for admin in ADMINS:
-        text = (f"💰 *НОВАЯ ОПЛАТА*\n\n"
-                f"👤 Пользователь: [{user_id}](tg://user?id={user_id})\n"
-                f"📛 Имя: {message.from_user.first_name}\n"
-                f"🎫 Тариф: {pending_item['tarif']}\n"
-                f"💵 Сумма: {pending_item['price']}₽\n"
-                f"📝 Номер операции: `{transaction}`\n\n"
-                f"✅ Чтобы выдать ключ — **ответьте на это сообщение**\n"
-                f"❌ Чтобы отклонить — ответьте: `отказ`")
+        text = (
+            "💰 *НОВАЯ ОПЛАТА* 💰\n"
+            "━━━━━━━━━━━━━━━━━━━━━━\n"
+            f"👤 Пользователь: [{user_id}](tg://user?id={user_id})\n"
+            f"📛 Имя: {message.from_user.first_name}\n"
+            f"🎫 Тариф: {pending_item['tarif']}\n"
+            f"💵 Сумма: {pending_item['price']}₽\n"
+            f"📝 Номер операции: `{transaction}`\n"
+            "━━━━━━━━━━━━━━━━━━━━━━\n"
+            "✅ *Чтобы выдать ключ* — ответьте на это сообщение\n"
+            "❌ *Чтобы отклонить* — ответьте: `отказ`"
+        )
         await bot.send_message(admin, text, parse_mode="Markdown")
     
     # Обновляем статус
@@ -225,14 +298,19 @@ async def handle_transaction(message: types.Message):
             break
     save_pending(pending)
     
-    await message.answer("✅ Номер операции отправлен администраторам. Ключ придет в течение 5-15 минут.")
+    await message.answer(
+        "✅ *НОМЕР ОПЕРАЦИИ ПОЛУЧЕН* ✅\n"
+        "━━━━━━━━━━━━━━━━━━━━━━\n"
+        "Администратор проверит платёж и выдаст ключ.\n"
+        "Обычно это занимает 5-15 минут.\n\n"
+        "Спасибо за ожидание! 🙏"
+    )
 
-# --- АДМИН: ВЫДАТЬ КЛЮЧ (ответом на сообщение) ---
+# ---------- АДМИН: ВЫДАТЬ КЛЮЧ ----------
 @dp.message_handler(lambda msg: msg.from_user.id in ADMINS and msg.reply_to_message)
 async def admin_reply(message: types.Message):
     reply_text = message.reply_to_message.text or ""
     
-    # Ищем ID пользователя
     match = re.search(r"Пользователь: \[(\d+)\]", reply_text)
     if not match:
         await message.answer("❌ Ответьте на сообщение с оплатой")
@@ -240,19 +318,23 @@ async def admin_reply(message: types.Message):
     
     user_id = int(match.group(1))
     
-    # Ищем тариф
     tarif_match = re.search(r"Тариф: (\w+)", reply_text)
     if not tarif_match:
         await message.answer("❌ Не найден тариф")
         return
     tarif = tarif_match.group(1)
     
-    # Если админ написал "отказ"
+    # Отказ
     if message.text.lower().strip() == "отказ":
-        await bot.send_message(user_id, "❌ Ваш платёж не подтверждён. Проверьте сумму или обратитесь в поддержку.")
+        await bot.send_message(
+            user_id,
+            "❌ *ПЛАТЁЖ НЕ ПОДТВЕРЖДЁН* ❌\n"
+            "━━━━━━━━━━━━━━━━━━━━━━\n"
+            "Проверьте сумму или обратитесь в поддержку.",
+            parse_mode="Markdown"
+        )
         await message.answer(f"❌ Платёж пользователя {user_id} отклонён")
         
-        # Удаляем из ожидающих
         pending = load_pending()
         pending = [p for p in pending if p["user_id"] != user_id]
         save_pending(pending)
@@ -261,17 +343,24 @@ async def admin_reply(message: types.Message):
     # Выдаём ключ
     key = get_and_remove_key(tarif)
     if key:
-        await bot.send_message(user_id, f"✅ *Ваш ключ:*\n`{key}`\n\nСпасибо за покупку!", parse_mode="Markdown")
+        await bot.send_message(
+            user_id,
+            f"✅ *КЛЮЧ ПОЛУЧЕН* ✅\n"
+            f"━━━━━━━━━━━━━━━━━━━━━━\n"
+            f"🎮 Ваш ключ: `{key}`\n"
+            f"━━━━━━━━━━━━━━━━━━━━━━\n"
+            f"Спасибо за покупку! Приятной игры! 🎉",
+            parse_mode="Markdown"
+        )
         await message.answer(f"✅ Ключ выдан пользователю {user_id}")
         
-        # Удаляем из ожидающих
         pending = load_pending()
         pending = [p for p in pending if p["user_id"] != user_id]
         save_pending(pending)
     else:
         await message.answer("❌ Ключи закончились! Добавьте через админ-панель.")
 
-# --- АДМИН: ОЖИДАЮТ ОПЛАТЫ ---
+# ---------- АДМИН: ОЖИДАЮТ ОПЛАТЫ ----------
 @dp.callback_query_handler(lambda c: c.data == "admin_pending")
 async def show_pending(callback: types.CallbackQuery):
     if callback.from_user.id not in ADMINS:
@@ -280,83 +369,148 @@ async def show_pending(callback: types.CallbackQuery):
     waiting = [p for p in pending if p["status"] == "waiting"]
     sent = [p for p in pending if p["status"] == "sent"]
     
-    text = "⏳ *Ожидают оплаты:*\n"
+    text = "⏳ *ОЖИДАЮТ ОПЛАТЫ:*\n"
     if waiting:
         for p in waiting:
-            text += f"👤 {p['user_id']} — {p['tarif']} — {p['price']}₽\n"
+            text += f"└ 👤 {p['user_id']} — {p['tarif']} — {p['price']}₽\n"
     else:
-        text += "Нет\n"
+        text += "└ Нет\n"
     
-    text += "\n📤 *Отправили номер (ждут ключ):*\n"
+    text += "\n📤 *ОТПРАВИЛИ НОМЕР (ждут ключ):*\n"
     if sent:
         for p in sent:
-            text += f"👤 {p['user_id']} — {p['tarif']} — {p['price']}₽\n"
+            text += f"└ 👤 {p['user_id']} — {p['tarif']} — {p['price']}₽\n"
     else:
-        text += "Нет"
+        text += "└ Нет"
     
     await callback.message.edit_text(text, parse_mode="Markdown", reply_markup=admin_panel())
     await callback.answer()
 
-# --- АДМИН-ПАНЕЛЬ (остальное) ---
+# ---------- АДМИН-ПАНЕЛЬ ----------
 @dp.message_handler(commands=["admin"])
 async def admin_cmd(message: types.Message):
     if message.from_user.id in ADMINS:
-        await message.answer("🔧 *Панель администратора*", parse_mode="Markdown", reply_markup=admin_panel())
+        await message.answer(
+            "🔧 *ПАНЕЛЬ АДМИНИСТРАТОРА* 🔧\n"
+            "━━━━━━━━━━━━━━━━━━━━━━\n"
+            "Выберите действие:",
+            parse_mode="Markdown",
+            reply_markup=admin_panel()
+        )
 
 @dp.callback_query_handler(lambda c: c.data == "admin_prices")
 async def admin_prices(callback: types.CallbackQuery):
     if callback.from_user.id in ADMINS:
-        await callback.message.answer("Введите 4 числа: `100 500 1500 5000`", parse_mode="Markdown")
+        await callback.message.answer(
+            "💰 *ИЗМЕНЕНИЕ ЦЕН* 💰\n"
+            "━━━━━━━━━━━━━━━━━━━━━━\n"
+            "Введите 4 числа через пробел:\n"
+            "`1день 7дней 14дней навсегда`\n\n"
+            "Пример: `270 1350 2550 на_заказ`\n"
+            "━━━━━━━━━━━━━━━━━━━━━━\n"
+            "❗ Для тарифа «навсегда» можно написать любой текст",
+            parse_mode="Markdown"
+        )
         temp_states[callback.from_user.id] = "waiting_prices"
     await callback.answer()
 
 @dp.callback_query_handler(lambda c: c.data == "admin_add_keys")
 async def admin_keys(callback: types.CallbackQuery):
     if callback.from_user.id in ADMINS:
-        await callback.message.answer("Введите: `тариф ключ`\nТарифы: 1day, 7day, 30day, forever\nДля завершения `готово`", parse_mode="Markdown")
+        await callback.message.answer(
+            "🔑 *ДОБАВЛЕНИЕ КЛЮЧЕЙ* 🔑\n"
+            "━━━━━━━━━━━━━━━━━━━━━━\n"
+            "Введите: `тариф ключ`\n"
+            "Тарифы: `1day`, `7day`, `14day`, `forever`\n\n"
+            "Пример: `1day ABC123-xyz`\n"
+            "━━━━━━━━━━━━━━━━━━━━━━\n"
+            "Для завершения введите `готово`",
+            parse_mode="Markdown"
+        )
         temp_states[callback.from_user.id] = "waiting_keys"
     await callback.answer()
 
 @dp.callback_query_handler(lambda c: c.data == "admin_stats")
 async def admin_stats(callback: types.CallbackQuery):
     if callback.from_user.id in ADMINS:
-        keys = load_keys()
+        keys_count = get_keys_count()
         users = len(load_users())
-        text = f"📊 *Статистика*\n👥 Пользователей: {users}\n"
-        for t, k in keys.items():
-            text += f"{t}: {len(k)} ключей\n"
+        pending = len([p for p in load_pending() if p["status"] == "waiting"])
+        
+        text = (
+            "📊 *СТАТИСТИКА* 📊\n"
+            "━━━━━━━━━━━━━━━━━━━━━━\n"
+            f"👥 Пользователей: *{users}*\n"
+            f"⏳ Ожидают оплаты: *{pending}*\n\n"
+            "🔑 *Ключи в наличии:*\n"
+            f"└ 💎 1 день: *{keys_count['1day']}* шт.\n"
+            f"└ 🔥 7 дней: *{keys_count['7day']}* шт.\n"
+            f"└ ⚡ 14 дней: *{keys_count['14day']}* шт.\n"
+            f"└ 👑 Навсегда: *{keys_count['forever']}* шт."
+        )
         await callback.message.edit_text(text, parse_mode="Markdown", reply_markup=admin_panel())
     await callback.answer()
 
 @dp.callback_query_handler(lambda c: c.data == "admin_mailing")
 async def admin_mailing(callback: types.CallbackQuery):
     if callback.from_user.id in ADMINS:
-        await callback.message.answer("Введите текст рассылки:")
+        await callback.message.answer(
+            "📢 *РАССЫЛКА* 📢\n"
+            "━━━━━━━━━━━━━━━━━━━━━━\n"
+            "Введите текст для рассылки.\n"
+            "Поддерживается *Markdown*.",
+            parse_mode="Markdown"
+        )
         temp_states[callback.from_user.id] = "waiting_mailing"
     await callback.answer()
 
+# ---------- ОБРАБОТКА ВВОДА АДМИНОВ ----------
 @dp.message_handler(lambda msg: msg.from_user.id in ADMINS and temp_states.get(msg.from_user.id) == "waiting_prices")
 async def save_prices(message: types.Message):
-    parts = message.text.split()
-    if len(parts) == 4 and all(p.isdigit() for p in parts):
+    parts = message.text.split(maxsplit=3)
+    if len(parts) == 4 and parts[0].isdigit() and parts[1].isdigit() and parts[2].isdigit():
         data = load_data()
-        data["prices"] = {"1day": int(parts[0]), "7day": int(parts[1]), "30day": int(parts[2]), "forever": int(parts[3])}
+        data["prices"] = {
+            "1day": int(parts[0]),
+            "7day": int(parts[1]),
+            "14day": int(parts[2]),
+            "forever": parts[3]
+        }
         save_data(data)
-        await message.answer("✅ Цены сохранены", reply_markup=admin_panel())
+        await message.answer(
+            "✅ *ЦЕНЫ СОХРАНЕНЫ* ✅\n"
+            "━━━━━━━━━━━━━━━━━━━━━━\n"
+            f"💎 1 день: {parts[0]}₽\n"
+            f"🔥 7 дней: {parts[1]}₽\n"
+            f"⚡ 14 дней: {parts[2]}₽\n"
+            f"👑 Навсегда: {parts[3]}",
+            parse_mode="Markdown",
+            reply_markup=admin_panel()
+        )
         del temp_states[message.from_user.id]
     else:
-        await message.answer("❌ Ошибка. Введите 4 числа")
+        await message.answer("❌ Ошибка! Введите 4 значения через пробел (первые 3 — цифры)")
 
 @dp.message_handler(lambda msg: msg.from_user.id in ADMINS and temp_states.get(msg.from_user.id) == "waiting_keys")
 async def save_keys(message: types.Message):
     if message.text.lower() == "готово":
-        await message.answer("✅ Готово", reply_markup=admin_panel())
+        await message.answer(
+            "✅ *КЛЮЧИ СОХРАНЕНЫ* ✅",
+            parse_mode="Markdown",
+            reply_markup=admin_panel()
+        )
         del temp_states[message.from_user.id]
         return
     parts = message.text.split(maxsplit=1)
-    if len(parts) == 2 and parts[0] in ["1day", "7day", "30day", "forever"]:
+    if len(parts) == 2 and parts[0] in ["1day", "7day", "14day", "forever"]:
         add_key(parts[0], parts[1])
-        await message.answer(f"✅ Добавлен. Осталось: {len(load_keys()[parts[0]])}")
+        keys_count = get_keys_count()
+        await message.answer(
+            f"✅ Ключ добавлен для *{parts[0]}*\n"
+            f"📊 Теперь в наличии: *{keys_count[parts[0]]}* шт.\n\n"
+            "Введите следующий ключ или `готово`",
+            parse_mode="Markdown"
+        )
     else:
         await message.answer("❌ Формат: `1day ABC123`")
 
@@ -364,32 +518,62 @@ async def save_keys(message: types.Message):
 async def send_mailing(message: types.Message):
     users = load_users()
     ok = 0
+    fail = 0
+    await message.answer(f"⏳ *Начинаю рассылку для {len(users)} пользователей...*", parse_mode="Markdown")
     for uid in users:
         try:
             await bot.send_message(uid, message.text, parse_mode="Markdown")
             ok += 1
             await asyncio.sleep(0.05)
         except:
-            pass
-    await message.answer(f"✅ Рассылка: {ok}/{len(users)}", reply_markup=admin_panel())
+            fail += 1
+    await message.answer(
+        f"✅ *РАССЫЛКА ЗАВЕРШЕНА* ✅\n"
+        f"━━━━━━━━━━━━━━━━━━━━━━\n"
+        f"✅ Успешно: *{ok}*\n"
+        f"❌ Ошибок: *{fail}*",
+        parse_mode="Markdown",
+        reply_markup=admin_panel()
+    )
     del temp_states[message.from_user.id]
 
-# --- ПОДДЕРЖКА ---
+# ---------- ПОДДЕРЖКА ----------
 @dp.callback_query_handler(lambda c: c.data == "support")
 async def support(callback: types.CallbackQuery):
-    await callback.message.edit_text("📞 *Напишите ваше сообщение:*", parse_mode="Markdown")
+    text = (
+        "📞 *ПОДДЕРЖКА* 📞\n"
+        "━━━━━━━━━━━━━━━━━━━━━━\n"
+        "Напишите ваше сообщение ниже.\n"
+        "Администраторы ответят вам как можно скорее!\n\n"
+        "💬 *Просто отправьте текст или файл*"
+    )
+    await callback.message.edit_text(text, parse_mode="Markdown")
     temp_states[callback.from_user.id] = "support_wait"
     await callback.answer()
 
 @dp.message_handler(lambda msg: temp_states.get(msg.from_user.id) == "support_wait")
 async def forward_support(message: types.Message):
     user = message.from_user
-    text = f"📞 *Обращение от* {user.id}\n📛 {user.first_name}\n💬 {message.text}"
+    text = (
+        "📞 *НОВОЕ ОБРАЩЕНИЕ* 📞\n"
+        "━━━━━━━━━━━━━━━━━━━━━━\n"
+        f"👤 ID: `{user.id}`\n"
+        f"📛 Имя: {user.first_name}\n"
+        f"🔗 Username: @{user.username}\n"
+        "━━━━━━━━━━━━━━━━━━━━━━\n"
+        f"💬 *Сообщение:*\n{message.text}"
+    )
     for admin in ADMINS:
         await bot.send_message(admin, text, parse_mode="Markdown")
-    await message.answer("✅ Отправлено")
+    await message.answer(
+        "✅ *СООБЩЕНИЕ ОТПРАВЛЕНО* ✅\n"
+        "━━━━━━━━━━━━━━━━━━━━━━\n"
+        "Администраторы скоро ответят вам!",
+        parse_mode="Markdown",
+        reply_markup=main_menu()
+    )
     del temp_states[message.from_user.id]
 
-# --- ЗАПУСК ---
+# ---------- ЗАПУСК ----------
 if __name__ == "__main__":
     start_polling(dp, skip_updates=True)
