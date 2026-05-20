@@ -574,6 +574,19 @@ async def forward_support(message: types.Message):
     )
     del temp_states[message.from_user.id]
 
+@dp.message_handler(content_types=['sticker'])
+async def get_sticker_id(message: types.Message):
+    sticker = message.sticker
+    text = (
+        f"📌 *Информация о стикере*\n"
+        f"━━━━━━━━━━━━━━━━━━━━━━\n"
+        f"🆔 File ID: `{sticker.file_id}`\n"
+        f"📦 Set name: {sticker.set_name}\n"
+        f"✨ Премиум: {'Да' if sticker.is_premium else 'Нет'}\n"
+        f"📐 Размер: {sticker.width}x{sticker.height}"
+    )
+    await message.reply(text, parse_mode="Markdown")
+
 # ---------- ЗАПУСК ----------
 if __name__ == "__main__":
     start_polling(dp, skip_updates=True)
