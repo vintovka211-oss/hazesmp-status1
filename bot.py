@@ -393,3 +393,90 @@ async def send_mailing(message: types.Message):
 # --- Запуск ---
 if __name__ == "__main__":
     start_polling(dp, skip_updates=True)
+
+# --- Обработка покупки (ручная проверка) ---
+@dp.callback_query_handler(lambda c: c.data.startswith("buy_"))
+async def buy_tariff(callback: types.CallbackQuery):
+    user_id = callback.from_user.id
+    tarif = callback.data.split("_")[1]
+    
+    data = load_data()
+    price = data["prices"][tarif]
+    
+    # Проверяем наличие ключей
+    keys = load_keys()
+    if not keys.get(tarif) or len(keys[tarif]) == 0:
+        await callback.message.answer("❌ Ключи временно закончились. Напишите в поддержку!", reply_markup=main_menu())
+        return
+    
+    # Сохраняем заказ
+    temp_payments[user_id] = {
+        "tarif": tarif,
+        "price": price,
+        "status": "waiting_payment"
+    }
+    
+    # Ссылка на оплату (ваша форма ЮMoney)
+    payment_link = f"https://yoomoney.ru/transfer/quickpay?requestId=&receiver={YUMONEY_WALLET}&quickpay=small&targets=Оплата%20чита%20{tarif}&sum={price}&comment={user_id}"
+    
+    text = (f"💸 *Оплата: {price}₽*\n\n"
+            f"🔗 [Нажмите сюда для оплаты]({payment_link})\n\n"
+            f"📌 *После оплаты отправьте номер операции*\n"
+            f"(он приходит в смс и в истории ЮMoney)\n\n"
+            f"Пример: `1234567-890123456`")
+    
+    await callback.message.edit_text(text, parse_mode="Markdown")
+    await callback.answer()
+
+# --- Получение номера операции ---
+@dp.message_handler(lambda msg: msg.from_user.id in temp_payments and temp_payments.get(msg.from_user.id, {}).get("status") == "waiting_payment")
+async def receive_transaction(message: types.Message):
+    user_id = message.from_user.id
+    transaction = message.text.strip()
+    payment = temp_payments[user_id]
+    
+    # Отправляем админам на проверку
+    for admin in ADMINS:
+        text = (f"💰 *Новая оплата требует проверки*\n\n"
+                f"👤 Пользователь: [{user_id}](tg://user?id={user_id})\n"
+                f"📛 Имя: {message.from_user.first_name}\n"
+                f"🎫 Тариф: {payment['tarif']}\n"
+                f"💵 Сумма: {payment['price']}₽\n"
+                f"📝 Номер операции: `{transaction}`\n\n"
+                f"Чтобы выдать ключ, ответьте на это сообщение:\n"
+                f"`выдать ключ {payment['tarif']}`")
+        
+        await bot.send_message(admin, text, parse_mode="Markdown")
+    
+    await message.answer("✅ Номер операции отправлен администраторам. Ключ придёт сюда в течение 5-15 минут.")
+    del temp_payments[user_id]
+
+# --- Админ: выдать ключ (ответом на сообщение) ---
+@dp.message_handler(lambda msg: msg.from_user.id in ADMINS and msg.reply_to_message)
+async def give_key_reply(message: types.Message):
+    reply_text = message.reply_to_message.text or ""
+    
+    # Ищем ID пользователя в сообщении
+    import re
+    match = re.search(r"Пользователь: \[(\d+)\]", reply_text)
+    if not match:
+        await message.answer("❌ Ответьте на сообщение с оплатой")
+        return
+    
+    user_id = int(match.group(1))
+    
+    # Ищем тариф
+    tarif_match = re.search(r"Тариф: (\w+)", reply_text)
+    if not tarif_match:
+        await message.answer("❌ Не удалось определить тариф")
+        return
+    
+    tarif = tarif_match.group(1)
+    
+    # Забираем ключ
+    key = get_and_remove_key(tarif)
+    if key:
+        await bot.send_message(user_id, f"✅ *Ваш ключ:*\n`{key}`\n\nСпасибо за покупку!", parse_mode="Markdown")
+        await message.answer(f"✅ Ключ выдан пользователю {user_id}")
+    else:
+        await message.answer("❌ Ключи закончились! Добавьте через админ-панель.")
